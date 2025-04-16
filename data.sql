@@ -37,7 +37,22 @@ INSERT INTO usuarios (nombre, email) VALUES
 ('usuario12', 'usuario12@ejemplo.com'),
 ('usuario13', 'usuario13@ejemplo.com'),
 ('usuario14', 'usuario14@ejemplo.com'),
-('usuario15', 'usuario15@ejemplo.com');
+('usuario15', 'usuario15@ejemplo.com'),
+('usuario16', 'usuario16@ejemplo.com'),
+('usuario17', 'usuario17@ejemplo.com'),
+('usuario18', 'usuario18@ejemplo.com'),
+('usuario19', 'usuario19@ejemplo.com'),
+('usuario20', 'usuario20@ejemplo.com'),
+('usuario21', 'usuario21@ejemplo.com'),
+('usuario22', 'usuario22@ejemplo.com'),
+('usuario23', 'usuario23@ejemplo.com'),
+('usuario24', 'usuario24@ejemplo.com'),
+('usuario25', 'usuario25@ejemplo.com'),
+('usuario26', 'usuario26@ejemplo.com'),
+('usuario27', 'usuario27@ejemplo.com'),
+('usuario28', 'usuario28@ejemplo.com'),
+('usuario29', 'usuario29@ejemplo.com'),
+('usuario30', 'usuario30@ejemplo.com');
 
 -- 2 reservas iniciales siendo los asientos A1 y A2
 INSERT INTO reservas (id_usuario, id_asiento, id_estado) VALUES
