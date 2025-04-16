@@ -40,25 +40,30 @@ def reservar_asiento(user_id, asiento_id, isolation_level, resultados, lock):
                     "INSERT INTO reservas (id_usuario, id_asiento, id_estado) VALUES (%s, %s, %s);",
                     (user_id, asiento_id, 1)
                 )
+                conn.commit()
                 with lock:
                     resultados['exitosas'] += 1
+
+                
                 print(f"Usuario {user_id} reservó asiento {asiento_id} exitosamente")
-                conn.commit()
             else:
-                cursor.execute(
-                    "INSERT INTO reservas (id_usuario, id_asiento, id_estado) VALUES (%s, %s, %s);",
-                    (user_id, asiento_id, 2)
-                )
                 with lock:
                     resultados['fallidas'] += 1
                 print(f"Usuario {user_id} falló al reservar asiento {asiento_id} (ya ocupado)")
                 conn.commit()
+        except psycopg2.errors.SerializationFailure as e:
+            # Error de serialización: rollback y reintentar
+            conn.rollback()
+            with lock:
+                resultados['fallidas'] += 1
+            print(f"Usuario {user_id} - error de serialización al reservar asiento {asiento_id}: {e}")
+
         except psycopg2.errors.UniqueViolation:
             conn.rollback()
             with lock:
                 resultados['fallidas'] += 1
             print(f"Usuario {user_id} tuvo conflicto al reservar asiento {asiento_id}")
-
+    
         except Exception as e:
             conn.rollback()
             with lock:
@@ -135,7 +140,10 @@ def crear_distribucion_asientos_con_colisiones(num_concurrente):
         # Asignar a cada usuario un asiento entre 1 y num_asientos
         # Esto garantiza que habrá colisiones cuando num_usuarios > num_asientos
         asiento_id = ((i - 1) % num_asientos) + 1
-        asignaciones.append((i + 2, asiento_id))  # Usuario ID comienza en 3
+        num = (i + 2)%30;
+        if num ==0:
+            num = 30
+        asignaciones.append((num, asiento_id))  # Usuario ID comienza en 3
     
     # Para aumentar aún más las colisiones, hacemos que algunos usuarios
     # específicamente compitan por el asiento #1
@@ -180,15 +188,61 @@ def ejecutar_prueba(concurrentes, isolation_level):
     tiempo_promedio = round(tiempo_total / concurrentes, 2)
 
     print(f"Resultado: Exitosas: {resultados['exitosas']} | Fallidas: {resultados['fallidas']} | Tiempo Promedio: {tiempo_promedio} ms")
+    resultados['tiempo'] = tiempo_promedio
+    return resultados
+
+def printInforme(informe):
+    tr = ["SERIALIZABLE", "REPEATABLE READ", "READ COMMITTED"]
+    count = 0; cats = {0:5, 1:10, 2:20, 3:30}
+    print("\nINFORME DE RESULTADOS")
+    for i in informe:
+        cat = cats[count%4]
+        if count%4 == 0:
+            print(tr.pop());
+        print(f"{cat}: exitos: {i['exitosas']}, fallidos: {i['fallidas']}, tiempo promedio: {i['tiempo']} ms")
+        count += 1
+
+def configure():
+    # Solicitar datos al usuario para cada uno de los parámetros de conexión.
+    dbname = input("Ingrese el nombre de la base de datos: ")
+    user = input("Ingrese el usuario: ")
+    password = input("Ingrese la contraseña: ")
+    host = input("Ingrese el host: ")
+    port = input("Ingrese el puerto: ")
+
+    # Construir el diccionario de configuración.
+    DB_CONFIG = {
+        'dbname': dbname,
+        'user': user,
+        'password': password,
+        'host': host,
+        'port': port
+    }
+
+    # Intentar conectar utilizando la configuración proporcionada.
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        conn.close()  # Cerramos la conexión si fue exitosa.
+        print("Conexión exitosa.")
+        return True
+    except Exception as e:
+        print("Error al conectar:", e)
+        return False
+
 
 def main():
+    if not configure():
+        return
     pruebas = [5, 10, 20, 30]
     niveles = ['READ COMMITTED', 'REPEATABLE READ', 'SERIALIZABLE']
+    informe = []
 
     for nivel in niveles:
         for cantidad in pruebas:
-            ejecutar_prueba(cantidad, nivel)
+            r = ejecutar_prueba(cantidad, nivel)
             limpiar_reservas_prueba()
+            informe.append(r)
+    printInforme(informe)
 
 def limpiar_reservas_prueba():
     try:
